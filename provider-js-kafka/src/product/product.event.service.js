@@ -1,4 +1,4 @@
-const { Kafka } = require("kafkajs");
+const { Kafka, Partitioners } = require("kafkajs");
 const { productFromJson } = require("./product");
 const { createEvent } = require("./product.event");
 
@@ -11,7 +11,7 @@ class ProductEventService {
       clientId: "product-event-service",
       brokers: [KAFKA_BROKER],
     });
-    this.producer = this.kafka.producer();
+    this.producer = this.kafka.producer({ createPartitioner: Partitioners.LegacyPartitioner });
 
     this.connect();
 
