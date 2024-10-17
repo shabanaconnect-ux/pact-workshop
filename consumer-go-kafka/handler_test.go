@@ -20,7 +20,7 @@ func TestConsumerV4(t *testing.T) {
 
 	// 2 Create the Pact Message Consumer
 	mockProvider, err := message.NewAsynchronousPact(message.Config{
-		Consumer: "PactGoV4KafkaConsumer",
+		Consumer: "pactflow-example-consumer-go-kafka",
 		Provider: "pactflow-example-provider-js-kafka",
 	})
 	assert.NoError(t, err)
@@ -30,7 +30,7 @@ func TestConsumerV4(t *testing.T) {
 	// to ensure it is correctly executed
 	err = mockProvider.
 		AddAsynchronousMessage().
-		ExpectsToReceive("A foo").
+		ExpectsToReceive("a product event update").
 		WithMetadata(map[string]string{"kafka_topic": "products"}).
 		WithJSONContent(matchers.Map{
 			"id":      matchers.Like("123"),
