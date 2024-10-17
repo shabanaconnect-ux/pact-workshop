@@ -4,20 +4,19 @@ import "errors"
 
 // Save adds or updates a product in the repository
 func Save(product *Product) error {
-	// TODO - Hook up to kafka producer
-	createEvent(*product, "CREATED")
+	KakfaProducer(createEvent(*product, "CREATED"))
 	return nil
 }
 
 // Delete removes a product from the repository by its ID
 func Delete(product *Product) error {
-	createEvent(*product, "DELETED")
+	KakfaProducer(createEvent(*product, "DELETED"))
 	return nil
 }
 
 // Update modifies an existing product in the repository
 func Update(product *Product) error {
-	createEvent(*product, "UPDATED")
+	KakfaProducer(createEvent(*product, "UPDATED"))
 	return nil
 }
 
