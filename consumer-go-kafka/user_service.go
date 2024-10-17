@@ -20,16 +20,6 @@ type ProductEvent struct {
 	Event string `json:"event" pact:"example=CREATED"`
 }
 
-var productRepository = &ProductRepository{
-	Products: map[string]*Product{
-		"10": {
-			Name:    "Pizza",
-			ID:      "10",
-			Type:    "food",
-			Version: "1.0.0",
-		},
-	},
-}
 
 // GetProduct fetches a product if authenticated and exists
 func GetProduct(c *gin.Context) {

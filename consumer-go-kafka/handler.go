@@ -5,17 +5,15 @@ import (
 	"fmt"
 )
 
-var repository ProductRepository
-
 func handler(product Product, event string) error {
 	fmt.Println("received product:", product)
 	fmt.Println("received product event:", event)
 
 	switch event {
 	case "CREATED", "UPDATED":
-		return repository.Insert(&product)
+		return productRepository.Insert(&product)
 	case "DELETED":
-		return repository.Delete(product.ID)
+		return productRepository.Delete(product.ID)
 	default:
 		return errors.New("unable to process event")
 	}
