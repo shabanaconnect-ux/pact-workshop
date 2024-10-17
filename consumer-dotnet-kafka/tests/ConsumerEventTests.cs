@@ -27,14 +27,14 @@ namespace Consumer.Tests
                 }
             };
 
-            pact = Pact.V4("Product API", "Event API", config).WithMessageInteractions();
+            pact = Pact.V4("pactflow-example-consumer-dotnet-kafka", "pactflow-example-provider-dotnet-kafka", config).WithMessageInteractions();
         }
 
         [Fact]
         public async Task ProductEventHandler_ProductCreated_HandlesMessage()
         {
             await pact
-                      .ExpectsToReceive("an event indicating that an order has been created")
+                      .ExpectsToReceive("a product event update")
                       .WithMetadata("kafka_topic","products")
                       .WithJsonContent(new
                       {
