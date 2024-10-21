@@ -1,11 +1,14 @@
 const { MessageProviderPact, providerWithMetadata } = require("@pact-foundation/pact");
 const { Product } = require("./product");
 const { createEvent } = require("./product.event");
+const path = require("path");
 
 describe("Message provider tests", () => {
 
+  const pactUrl = process.env.PACT_URL || path.join(__dirname, "..", "..", "..", "consumer-js-kafka", "pacts", "pactflow-example-consumer-js-kafka-pactflow-example-provider-js-kafka.json");
+
   const opts = {
-    pactUrls: [process.env.PACT_URL],
+    pactUrls: [pactUrl],
     messageProviders: {
       'a product event update': providerWithMetadata(() => createEvent(new Product("42", "food", "pizza"), "UPDATED"), {
         kafka_topic: 'products',

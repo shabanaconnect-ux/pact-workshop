@@ -24,9 +24,8 @@ func setupRouter() *gin.Engine {
 	router.POST("/products", CreateProduct)
 	router.PUT("/products/:id", UpdateProduct)
 	router.DELETE("/products/:id", DeleteProduct)
-	router.Run("localhost:8080")
 	go func() {
-		if err := router.Run("localhost:8080"); err != nil {
+		if err := router.Run("localhost:8081"); err != nil {
 			fmt.Printf("Failed to run server: %v\n", err)
 		}
 	}()

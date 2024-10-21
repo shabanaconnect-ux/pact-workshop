@@ -14,6 +14,12 @@ else
 	DEPLOY_TARGET=no_deploy
 endif
 
+ifeq ($(OS),Windows_NT)
+GRADLE_CMD=gradlew.bat
+else
+GRADLE_CMD=./gradlew
+endif
+
 all: test
 
 ## ====================
@@ -33,7 +39,7 @@ fake_ci:
 	make ci
 
 ci_webhook:
-	./gradlew clean test -i
+	$(GRADLE_CMD) clean test -i
 
 fake_ci_webhook:
 	CI=true \
@@ -47,7 +53,7 @@ fake_ci_webhook:
 ## =====================
 
 test:
-	./gradlew clean test -i
+	$(GRADLE_CMD) clean test -i
 
 ## =====================
 ## Deploy tasks
@@ -120,4 +126,4 @@ docker:
 
 start: docker
 	@echo "starting kafka cluster and producer"
-	./gradlew bootRun
+	$(GRADLE_CMD) bootRun

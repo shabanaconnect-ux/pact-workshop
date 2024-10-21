@@ -1,0 +1,87 @@
+name: test
+
+on:
+  push:
+
+jobs:
+  test:
+    name: ${{matrix.project}}-${{matrix.os}}
+    strategy:
+      matrix:
+        os: 
+          - ubuntu-latest
+          - windows-latest
+          - macos-13
+          - macos-14
+        project:
+          - rust
+          - dotnet
+          - go
+          - java
+          - js
+          # - python
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        if: ${{ matrix.project == 'rust' }}
+        with:
+          cache: false
+      - uses: actions/setup-go@v5
+        if: ${{ matrix.project == 'go' }}
+        with:
+          go-version: '^1.22.x'
+          cache-dependency-path: |
+                consumer-go-kafka/go.sum
+                provider-go-kafka/go.sum
+      - name: setup librdkafka windows
+        if: ${{ matrix.os == 'windows-latest' && matrix.project == 'go' }}
+        shell: powershell
+        run: |
+          cd consumer-go-kafka
+          go mod tidy
+          PowerShell -NoProfile -ExecutionPolicy Unrestricted -Command "& {Start-Process PowerShell -ArgumentList '-NoProfile -ExecutionPolicy Unrestricted -File ""D:\a\pact-workshop-message\pact-workshop-message\consumer-go-kafka\setup_rdkafka.ps1""' -Verb RunAs}";
+          "CGO_ENABLED=1" >> $env:GITHUB_ENV
+          "CGO_LDFLAGS=-L$env:TMP -lrdkafka" >> $env:GITHUB_ENV
+          "$env:TMP" >> $env:GITHUB_PATH
+      - uses: actions/setup-dotnet@v4
+        if: ${{ matrix.project == 'dotnet' }}
+        with:
+          dotnet-version: '8.x.x'
+      - uses: actions/setup-java@v4
+        if: ${{ matrix.project == 'java' }}
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        if: ${{ matrix.project == 'js' }}
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        if: ${{ matrix.project == 'python' }}
+        with:
+          python-version: '3.11.5'
+      - name: setup pyenv
+        if: ${{ matrix.project == 'python' }}
+        uses: "gabrielfalcao/pyenv-action@v18"
+        with:
+          default: '3.11.5'
+          command: pip install -U pip
+      - name: install (consumer)
+        run: make install
+        if: ${{matrix.project == 'js'||matrix.project == 'go'||matrix.project == 'python'}}
+        working-directory: consumer-${{matrix.project}}-kafka
+      - name: pact test (consumer)
+        run: make test
+        working-directory: consumer-${{matrix.project}}-kafka
+      - name: install (provider)
+        run: make install
+        if: ${{matrix.project == 'js'||matrix.project == 'go'||matrix.project == 'python'}}
+        working-directory: provider-${{matrix.project}}-kafka
+      - name: pact verification (provider)
+        run: make test
+        working-directory: provider-${{matrix.project}}-kafka

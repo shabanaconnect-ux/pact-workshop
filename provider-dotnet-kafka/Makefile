@@ -44,7 +44,7 @@ stop: server.PID
 # Run the ci target from a developer machine with the environment variables
 # set as if it was on Travis CI.
 # Use this for quick feedback when playing around with your workflows.
-fake_ci: .env
+fake_ci: 
 	CI=true \
 	GIT_COMMIT=`git rev-parse --short HEAD`+`date +%s` \
 	GIT_BRANCH=`git rev-parse --abbrev-ref HEAD` \
@@ -56,7 +56,7 @@ ci_webhook: run_tests
 ## Build/test tasks
 ## =====================
 
-test: .env
+test: 
 	dotnet test tests
 
 run_tests: restore start $(WAIT_TARGET) test stop 
@@ -70,13 +70,13 @@ deploy: deploy_app record_deployment
 no_deploy:
 	@echo "Not deploying as not on master branch"
 
-can_i_deploy: .env
+can_i_deploy: 
 	@"${PACT_CLI}" broker can-i-deploy --pacticipant ${PACTICIPANT} --version ${GIT_COMMIT} --to-environment production
 
 deploy_app:
 	@echo "Deploying to production"
 
-record_deployment: .env
+record_deployment: 
 	@"${PACT_CLI}" broker record_deployment --pacticipant ${PACTICIPANT} --version ${GIT_COMMIT} --environment production
 
 ## =====================
@@ -109,8 +109,5 @@ test_contract_requiring_verification_published_webhook:
 ## ======================
 ## Misc
 ## ======================
-
-.env:
-	touch .env
 
 .PHONY: start stop

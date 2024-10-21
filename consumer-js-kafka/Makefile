@@ -36,6 +36,9 @@ publish_pacts:
 ## Build/test tasks
 ## =====================
 
+install:
+	npm install
+
 test:
 	npm run test:pact
 

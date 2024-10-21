@@ -42,6 +42,9 @@ fake_ci_webhook:
 ## Build/test tasks
 ## =====================
 
+install:
+	npm install
+
 test: .env
 	npm run test
 
@@ -86,12 +89,12 @@ start: docker
 	npm start
 
 create-product:
-	curl -v -X POST -H"Content-Type: application/json" localhost:8001/products -d '{"type":"pizza", "name":"food"}'
+	curl -v -X POST -H"Content-Type: application/json" localhost:8081/products -d '{"type":"pizza", "name":"food"}'
 
 update-product:
-	curl -v -X PUT -H"Content-Type: application/json" localhost:8001/products/1 -d '{"type":"pizza", "name":"food", "version":"v1"}'
+	curl -v -X PUT -H"Content-Type: application/json" localhost:8081/products/1 -d '{"type":"pizza", "name":"food", "version":"v1"}'
 
 delete-product:
-	curl -v -X DELETE -H"Content-Type: application/json" localhost:8001/products/1 -d '{"type":"pizza", "name":"food", "version":"v1"}'
+	curl -v -X DELETE -H"Content-Type: application/json" localhost:8081/products/1 -d '{"type":"pizza", "name":"food", "version":"v1"}'
 
 .PHONY: docker docker-stop docker-rm docker-logs

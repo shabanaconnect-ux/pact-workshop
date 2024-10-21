@@ -21,7 +21,7 @@ func TestConsumerV4(t *testing.T) {
 	// 2 Create the Pact Message Consumer
 	mockProvider, err := message.NewAsynchronousPact(message.Config{
 		Consumer: "pactflow-example-consumer-go-kafka",
-		Provider: "pactflow-example-provider-js-kafka",
+		Provider: "pactflow-example-provider-go-kafka",
 	})
 	assert.NoError(t, err)
 

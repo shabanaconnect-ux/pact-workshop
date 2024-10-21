@@ -36,8 +36,14 @@ publish_pacts:
 ## Build/test tasks
 ## =====================
 
+ifeq ($(OS),Windows_NT)
+GRADLE_CMD=gradlew.bat
+else
+GRADLE_CMD=./gradlew
+endif
+
 test:
-	./gradlew clean test -i
+	$(GRADLE_CMD) clean test -i
 
 ## =====================
 ## Deploy tasks
@@ -119,7 +125,7 @@ docker:
 	@docker-compose -f kafka-cluster.yml up -d --no-recreate
 
 start: docker
-	./gradlew bootRun
+	$(GRADLE_CMD) bootRun
 
 test-events:
 	docker exec -it pactflow-example-consumer-java-kafka_kafka_1 /tmp/scripts/producer.sh

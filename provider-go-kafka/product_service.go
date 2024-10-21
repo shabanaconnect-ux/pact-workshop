@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // Product is the domain object
@@ -34,6 +35,9 @@ func incrementVersion(v string) string {
 
 func createEvent(product Product, eventType string) ProductEvent {
 	incrementVersion(product.Version)
+	if product.ID == "" {
+		product.ID = uuid.New().String()
+	}
 	return ProductEvent{
 		Product: product,
 		Event:   eventType,

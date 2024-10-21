@@ -138,7 +138,7 @@ async fn main() -> std::io::Result<()> {
             .route("/products/{id}", web::put().to(update_product))
             .route("/products/{id}", web::delete().to(delete_product))
     })
-    .bind("127.0.0.1:8001")?
+    .bind("127.0.0.1:8081")?
     .run()
     .await
 }
