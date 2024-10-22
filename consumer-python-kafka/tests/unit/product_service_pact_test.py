@@ -1,44 +1,74 @@
 import os
 
 import pytest as pytest
-from pact import Like, MessageConsumer, Provider, Term
-
+import json
+import asyncio
+import pytest_asyncio
+from pact.v3.pact import Pact
+from pact.v3.match import like, regex
+from pathlib import Path
+from typing import (
+    TYPE_CHECKING,
+    Any,
+)
 from src.product.product_service import receive_product_update
+from src.product.product import Products
 
 CONSUMER_NAME = "pactflow-example-consumer-python-kafka"
-PROVIDER_NAME = os.getenv("PACT_PROVIDER", "pactflow-example-provider-js-kafka")
+PROVIDER_NAME = os.getenv("PACT_PROVIDER", "pactflow-example-provider-python-kafka")
 PACT_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),"..","..", "pacts")
 
-@pytest.fixture(scope="session")
-def consumer():
+@pytest.fixture
+def handler():
     return receive_product_update
 
-
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pact():
-    pact = MessageConsumer(
-        CONSUMER_NAME,
-    ).has_pact_with(
-        Provider(PROVIDER_NAME),
-        pact_dir=PACT_DIR,
-    )
+    pact_dir = Path(Path(__file__).parent.parent.parent / "pacts")
+    pact = Pact(CONSUMER_NAME, PROVIDER_NAME)
+    yield pact.with_specification("V4")
+    pact.write_file(pact_dir, overwrite=True)
 
-    yield pact
+@pytest.fixture
+def verifier(
+    handler,
+):
+    """
+    Verifier function for the Pact.
 
-@pytest.mark.asyncio
-async def test_receive_a_product_update(pact, consumer):
+    This function is passed to the `verify` method of the Pact object. It is
+    responsible for taking in the messages (along with the context/metadata)
+    and ensuring that the consumer is able to process the message correctly.
+
+    In our case, we deserialize the message and pass it to our message
+    handler for processing.
+    """
+
+    def _verifier(msg: str | bytes | None, context: dict[str, Any]) -> Products:
+        assert msg is not None, "Message is None"
+        data = json.loads(msg)
+        print(
+            "Processing message: ",
+            {"input": msg, "processed_message": data, "context": context},
+        )
+        loop = asyncio.get_event_loop()
+        result = loop.run_until_complete(handler(data))
+        print("Handler result: ", result)
+        return result
+    yield _verifier
+
+def test_receive_a_product_update(pact, handler, verifier):
     event = {
-        "id": Like("some-uuid-1234-5678"),
-        "type": Like("Product Range"),
-        "name": Like("Some Product"),
-        "event": Term(matcher="^(CREATED|UPDATED|DELETED)$", generate="UPDATED")
+        "id": like("some-uuid-1234-5678"),
+        "type": like("Product Range"),
+        "name": like("Some Product"),
+        "event": regex("UPDATED", regex=r"^(CREATED|UPDATED|DELETED)$")
     }
     (
         pact
-        .expects_to_receive("a product event update")
-        .with_content(event)
-        .with_metadata({"contentType": "application/json", 'kafka_topic': 'products'})
+        .upon_receiving("a product event update", "Async")
+        .with_body(event,
+            "application/json")
+        .with_metadata({"topic": "products"})
     )
-
-    with pact:
-        await consumer(event)
+    pact.verify(verifier, "Async")

@@ -19,17 +19,17 @@ class ProductRepository:
         if "id" not in data:
             data["id"] = str(uuid.uuid4())
         ProductRepository._send_event('CREATED', data)
-        return data["id"]
+        return data
 
     @staticmethod
-    def update_product(product_id, data):
+    def update_product(data):
         ProductRepository._send_event('UPDATED', data)
-        return data["id"]
+        return data
 
     @staticmethod
-    def delete_product(product_id):
+    def delete_product(data):
         ProductRepository._send_event('DELETED', data)
-        return data["id"]
+        return data
 
     @staticmethod
     def _send_event(event_type, data):
@@ -54,13 +54,13 @@ class ProductController:
     @staticmethod
     def update(product_id):
         data = request.json
-        if ProductRepository.update_product(product_id, data):
+        if ProductRepository.update_product(data):
             return jsonify({'message': 'Product updated'}), 200
         return jsonify({'message': 'Product not found'}), 404
 
     @staticmethod
     def delete(product_id):
-        if ProductRepository.delete_product(product_id):
+        if ProductRepository.delete_product(data):
             return jsonify({'message': 'Product deleted'}), 200
         return jsonify({'message': 'Product not found'}), 404
 
