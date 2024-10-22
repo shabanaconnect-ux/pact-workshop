@@ -14,10 +14,10 @@ This workshop should take from 1 to 2 hours, depending on how deep you want to g
 
 **Workshop outline**:
 
-- [step 1: **create consumer(subscriber)**](https://github.com/pact-foundation/pact-workshop-js/tree/step1#step-1---simple-consumer-calling-provider): Create our consumer before the Provider API even exists
-- [step 2: **create consumer pact test**](https://github.com/pact-foundation/pact-workshop-js/tree/step3#step-3---pact-to-the-rescue): Write a Pact test for our consumer
-- [step 3: **create provider(publisher)**](https://github.com/pact-foundation/pact-workshop-js/tree/step3#step-3---pact-to-the-rescue): Create our provider
-- [step 4: **create provider pact test**](https://github.com/pact-foundation/pact-workshop-js/tree/step3#step-3---pact-to-the-rescue): Write a Pact test to verify our provider codebase
+- [step 1: **create consumer(subscriber)**](https://github.com/YOU54F/pact-workshop-message?tab=readme-ov-file#step-1---create-consumer-subscriber): Create our consumer before the Provider API even exists
+- [step 2: **create consumer pact test**](https://github.com/YOU54F/pact-workshop-message?tab=readme-ov-file#step-2---create-consumer-pact-test): Write a Pact test for our consumer
+- [step 3: **create provider(publisher)**](https://github.com/YOU54F/pact-workshop-message?tab=readme-ov-file#step-3---create-provider-publisher): Create our provider
+- [step 4: **create provider pact test**](https://github.com/YOU54F/pact-workshop-message?tab=readme-ov-file#step-4---create-provider-pact-test): Write a Pact test to verify our provider codebase
 <!-- - [step 5: **extend consumer**](https://github.com/pact-foundation/pact-workshop-js/tree/step5#step-5---back-to-the-client-we-go): Extend our consumer -->
 
 <!-- _NOTE: Each step is tied to, and must be run within, a git branch, allowing you to progress through each stage incrementally._
