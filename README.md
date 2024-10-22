@@ -90,6 +90,8 @@ uct.
 
 We will only be focusing on the messages sent via Kafka and not the HTTP service, you can follow the HTTP workshop, to see Pact in action against the HTTP endpoints.
 
+![Scenario Overview](./docs/kafka-react.png)
+
 ## Step 1 - Create Consumer (subscriber)
 
 We recommend that you split the code that is responsible for handling the protocol specific things - for example an AWS lambda handler and the AWS SNS input body - and the piece of code that actually handles the payload.
