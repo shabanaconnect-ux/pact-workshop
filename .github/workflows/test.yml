@@ -72,7 +72,11 @@ jobs:
       - name: pact test (consumer)
         run: |
           if [ "${{ matrix.project }}" == "python" ]; then
-            source $(poetry env info --path)/bin/activate
+              if [ "${{ matrix.os }}" == "windows-latest" ]; then
+                source $(poetry env info --path)/Scripts/activate
+              else
+                source $(poetry env info --path)/bin/activate
+              fi
           fi
           make test
         working-directory: consumer-${{matrix.project}}-kafka
@@ -83,7 +87,11 @@ jobs:
       - name: pact verification (provider)
         run: |
           if [ "${{ matrix.project }}" == "python" ]; then
-            source $(poetry env info --path)/bin/activate
+              if [ "${{ matrix.os }}" == "windows-latest" ]; then
+                source $(poetry env info --path)/Scripts/activate
+              else
+                source $(poetry env info --path)/bin/activate
+              fi
           fi
           make test
         working-directory: provider-${{matrix.project}}-kafka
