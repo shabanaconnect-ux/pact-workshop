@@ -113,12 +113,10 @@ sgr0 := $(shell tput sgr0)
 red := $(shell tput setaf 1)
 green := $(shell tput setaf 2)
 
-install:
-	pip install poetry
-	make venv
-	make deps
+install: deps
 
 deps:
+	pip3 install poetry
 	poetry install
 
 venv:

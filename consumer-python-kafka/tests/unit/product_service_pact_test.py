@@ -69,6 +69,6 @@ def test_receive_a_product_update(pact, handler, verifier):
         .upon_receiving("a product event update", "Async")
         .with_body(event,
             "application/json")
-        .with_metadata({"topic": "products"})
+        .with_metadata({"kafka_topic": "products"})
     )
     pact.verify(verifier, "Async")

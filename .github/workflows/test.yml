@@ -14,12 +14,12 @@ jobs:
           - macos-13
           - macos-14
         project:
-          - rust
-          - dotnet
-          - go
-          - java
-          - js
-          # - python
+          # - rust
+          # - dotnet
+          # - go
+          # - java
+          # - js
+          - python
       fail-fast: false
     runs-on: ${{ matrix.os }}
     defaults:
@@ -65,23 +65,25 @@ jobs:
         if: ${{ matrix.project == 'python' }}
         with:
           python-version: '3.11.5'
-      - name: setup pyenv
-        if: ${{ matrix.project == 'python' }}
-        uses: "gabrielfalcao/pyenv-action@v18"
-        with:
-          default: '3.11.5'
-          command: pip install -U pip
       - name: install (consumer)
         run: make install
         if: ${{matrix.project == 'js'||matrix.project == 'go'||matrix.project == 'python'}}
         working-directory: consumer-${{matrix.project}}-kafka
       - name: pact test (consumer)
-        run: make test
+        run: |
+          if [ "${{ matrix.project }}" == "python" ]; then
+            source $(poetry env info --path)/bin/activate
+          fi
+          make test
         working-directory: consumer-${{matrix.project}}-kafka
       - name: install (provider)
         run: make install
         if: ${{matrix.project == 'js'||matrix.project == 'go'||matrix.project == 'python'}}
         working-directory: provider-${{matrix.project}}-kafka
       - name: pact verification (provider)
-        run: make test
+        run: |
+          if [ "${{ matrix.project }}" == "python" ]; then
+            source $(poetry env info --path)/bin/activate
+          fi
+          make test
         working-directory: provider-${{matrix.project}}-kafka

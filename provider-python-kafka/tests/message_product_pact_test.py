@@ -30,24 +30,23 @@ MESSAGE_DESCRIPTION: str | None = None
 
 def message_producer_function() -> tuple[str, str, str]:
     producer = ProductRepository()
-
     # TODO - The demo provider_server mirrors the same bug in pact-python v2
     # incorrect mapping of states, rather than description
     assert CURRENT_STATE is not None, "Message Description is not set"
     function_name = responses.get(CURRENT_STATE, {}).get("function_name")
     assert function_name is not None, "Function name could not be found"
     if function_name == "product_event_update":
-        updated_product = producer.create_product({"event": "UPDATED", "name": "Some Product", "type": "Product Range"})
+        updated_product = producer.produce_event("UPDATED",{"name": "Some Product", "type": "Product Range","version":"v1", "id":"123"})
         return (
-          json.dumps(updated_product),
+          updated_product[1],
           "application/json",
-          '{"topic":"products"}'
+          f'{{"kafka_topic":"{updated_product[0]}"}}'
         )
 
     return (
-      '{"event":"UPDATED","id": "some-uuid-1234-5678", "name": "Some Product","type": "Product Range"}',
-      "application/json",
-      '{"topic":"products"}'
+      nil,
+      nil,
+      nil
     )
 
 

@@ -36,7 +36,7 @@ publish_pacts:
 ## =====================
 
 test:
-	python3 -m pytest
+	python3 -m pytest -s
 
 ## =====================
 ## Deploy tasks
@@ -80,7 +80,10 @@ sgr0 := $(shell tput sgr0)
 red := $(shell tput setaf 1)
 green := $(shell tput setaf 2)
 
+install: deps
+
 deps:
+	pip3 install poetry
 	poetry install
 
 venv:
@@ -104,4 +107,4 @@ venv:
 	pyenv local ${PROJECT}
 
 run:
-	python3 run.py
+	python3 src/server.py

@@ -11,9 +11,11 @@ config = {
     'acks': 'all'
 }
 
-producer = Producer(config)
+
 
 class ProductRepository:
+
+    PRODUCT_TOPIC = 'products'
     @staticmethod
     def create_product(data):
         if "id" not in data:
@@ -33,6 +35,13 @@ class ProductRepository:
 
     @staticmethod
     def _send_event(event_type, data):
+        msg = ProductRepository.produce_event(event_type, data)
+        producer.produce(msg[0],value=msg[1].encode('utf-8'))
+        producer.poll(10000)
+        producer.flush()
+
+    @staticmethod
+    def produce_event(event_type, data):
         product_event = {
             'event': event_type,
             'type': data["type"],
@@ -40,9 +49,7 @@ class ProductRepository:
             'version': data["version"],
             'name': data["name"]
         }
-        producer.produce('products', value=json.dumps(data).encode('utf-8'))
-        producer.poll(10000)
-        producer.flush()
+        return (ProductRepository.PRODUCT_TOPIC, json.dumps(product_event))
 
 class ProductController:
     @staticmethod
@@ -81,4 +88,5 @@ def delete_product(product_id):
     return '', 200
 
 if __name__ == '__main__':
+    producer = Producer(config)
     app.run(port=8081, debug=True)
