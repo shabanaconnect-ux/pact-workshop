@@ -3,9 +3,11 @@ use futures::StreamExt;
 use rdkafka::config::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::message::Message;
+use rdkafka::producer::{FutureProducer, FutureRecord};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Product {
@@ -15,7 +17,7 @@ pub struct Product {
     version: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ProductEvent {
     id: String,
     name: String,
@@ -66,6 +68,10 @@ pub fn product_event_processor(data: &web::Data<AppState>, payload: &[u8]) {
     }
 }
 
+fn product_event_reply_generator(product: &Product) -> Vec<u8> {
+    serde_json::to_vec(product).expect("Error serializing product")
+}
+
 async fn kafka_consumer(data: web::Data<AppState>) {
     let consumer: StreamConsumer = ClientConfig::new()
         .set("group.id", "products-group")
@@ -74,7 +80,7 @@ async fn kafka_consumer(data: web::Data<AppState>) {
         .expect("Consumer creation failed");
 
     consumer
-        .subscribe(&["products"])
+        .subscribe(&["product_request"])
         .expect("Can't subscribe to topic");
 
     let mut message_stream = consumer.stream();
@@ -84,26 +90,39 @@ async fn kafka_consumer(data: web::Data<AppState>) {
             Ok(m) => {
                 if let Some(payload) = m.payload() {
                     product_event_processor(&data, payload);
-                    // let product_event: ProductEvent =
-                    //     serde_json::from_slice(payload).expect("Error deserializing product");
-                    // let product = Product {
-                    //     id: product_event.id.clone(),
-                    //     r#type: product_event.r#type.clone(),
-                    //     name: product_event.name.clone(),
-                    //     version: product_event.version.clone(),
-                    // };
-                    // let mut products = data.products.lock().unwrap();
-                    // match product_event.event.as_str() {
-                    //     "CREATED" | "UPDATED" => {
-                    //         products.insert(product_event.id.clone(), product);
-                    //     }
-                    //     "DELETED" => {
-                    //         products.remove(&product.id);
-                    //     }
-                    //     _ => {
-                    //         eprintln!("Unknown event type");
-                    //     }
-                    // }
+                    // Process the request and prepare the response
+                    let product_event: ProductEvent =
+                        serde_json::from_slice(payload).expect("Error deserializing product");
+                    println!("incoming event {:?}",product_event);
+                    let product = Product {
+                        id: product_event.id.clone(),
+                        r#type: product_event.r#type.clone(),
+                        name: product_event.name.clone(),
+                        version: product_event.version.clone(),
+                    };
+                    let reply_payload = product_event_reply_generator(&product);
+                    // Publish the response to the reply topic
+                    let producer: FutureProducer = ClientConfig::new()
+                        .set("bootstrap.servers", "localhost:9092")
+                        .create()
+                        .expect("Producer creation failed");
+
+                    let delivery_status = producer
+                        .send(
+                            FutureRecord::<Vec<u8>, Vec<u8>>::to("product_reply")
+                                .payload(&reply_payload),
+                            Duration::from_secs(0),
+                        )
+                        .await;
+
+                    match delivery_status {
+                        Ok(_) => {
+                            println!("Product response sent to product_reply topic");
+                        }
+                        Err(e) => {
+                            eprintln!("Error sending product response: {:?}", e);
+                        }
+                    }
                 }
             }
             Err(e) => eprintln!("Kafka error: {}", e),
@@ -140,13 +159,13 @@ mod tests {
 use expectest::{expect, prelude::be_some};
 use pact_consumer::{matching_regex, prelude::*};
 use serde_json::Value;
-use crate::{product_event_processor, AppState};
+use crate::{product_event_processor, product_event_reply_generator, AppState};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use actix_web::web;
 use expectest::matchers::be_equal_to;
 #[test]
-fn consumes_a_product_event_update_message() {
+fn consumes_a_product_event_update_message_and_responds() {
     // Define the Pact for the test (you can setup multiple interactions by chaining the given or message_interaction calls)
     // For messages we need to use the V4 Pact format.
     let mut pact_builder =
@@ -155,9 +174,9 @@ fn consumes_a_product_event_update_message() {
     pact_builder
 
         // Adds an interaction given the message description and type.
-        .message_interaction("a product event update", |mut i| {
+        .synchronous_message_interaction("a product event update with reply", |mut i| {
             // Can set the test name (optional)
-            i.test_name("consumes_a_product_event_update_message");
+            i.test_name("consumes_a_product_event_update_message_and_responds");
             // // defines a provider state. It is optional.
             // i.given("some state");
             // // defines a provider state with parameters. It is optional.
@@ -165,15 +184,22 @@ fn consumes_a_product_event_update_message() {
             //     "param": "some param"
             //   }));
             // Set the contents of the message. Here we use a JSON pattern, so that matching rules are applied
-            i.json_body(json_pattern!({
+            i.request_json_body(json_pattern!({
               "id": like!("some-uuid-1234-5678"),
               "type": like!("Product Range"),
               "name": like!("Some Product"),
               "version": like!("v1"),
               "event": matching_regex!("^(CREATED|UPDATED|DELETED)$","UPDATED")
             }));
+            i.response_json_body(json_pattern!({
+              "id": like!("some-uuid-1234-5678"),
+              "type": like!("Product Range"),
+              "name": like!("Some Product"),
+              "version": like!("v1")
+            }));
             // Set any required metadata
-            i.metadata("kafka_topic", "products");
+            i.request_metadata("kafka_request_topic", "product_request");
+            i.request_metadata("kafka_reply_topic", "product_reply");
             // Need to return the mutated interaction builder
             i
         });
@@ -184,14 +210,24 @@ fn consumes_a_product_event_update_message() {
     
     // This will return each message configured with the Pact builder. We need to process them
     // with out message handler (it should be the one used to actually process your messages).
-    for message in pact_builder.messages() {
+    for message in pact_builder.synchronous_messages() {
         // Process the message here as it would if it came off the queue
-        let message_bytes = message.contents.contents.value().unwrap();
-        let kafka_topic = message.contents.metadata.get("kafka_topic");
-        let _message: Value = serde_json::from_slice(&message_bytes).unwrap();
+        // the request message we must make
+        let request_message_bytes = message.request.contents.value().unwrap();
 
-        // Send the message to our message processor
-        product_event_processor(&data,&message_bytes);
+        // the response message we expect to receive from the provider
+        let response_message_bytes = message.response.first().unwrap().contents.value().unwrap();
+
+        // get message metadata
+        let kafka_request_topic = message.request.metadata.get("kafka_request_topic");
+        let kafka_reply_topic = message.request.metadata.get("kafka_reply_topic");
+
+        // you may want to process the bytes into a Value
+        let _request_message: Value = serde_json::from_slice(&request_message_bytes).unwrap();
+        let _response_message: Value = serde_json::from_slice(&response_message_bytes).unwrap();
+
+        // Send the message to our message processor 
+        product_event_processor(&data,&request_message_bytes);
         
         // assert of the state of our product database, after processing the message
         let products = data.products.lock().unwrap();
@@ -202,9 +238,16 @@ fn consumes_a_product_event_update_message() {
         expect!(product.r#type.clone()).to(be_equal_to("Product Range".to_string()));
         expect!(product.version.clone()).to(be_equal_to("v1".to_string()));
 
-        // assert the correct topic is included in our message
-        expect!(kafka_topic)
-            .to(be_some().value("products"));
+        // assert the correct topics are included in our message
+        expect!(kafka_request_topic)
+            .to(be_some().value("product_request"));
+        expect!(kafka_reply_topic)
+            .to(be_some().value("product_reply"));
+
+        // we should now call our event reply generator and ensure it can create the appropriate message
+        let actual_response: Value = serde_json::from_slice(&product_event_reply_generator(product)).unwrap();
+        let expected_response: Value = serde_json::from_slice(&response_message_bytes).unwrap();
+        assert_eq!(expected_response, actual_response);
     }
 }
 

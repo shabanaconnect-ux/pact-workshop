@@ -1,10 +1,15 @@
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use futures::TryStreamExt;
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::{FutureProducer, FutureRecord};
+use rdkafka::consumer::{StreamConsumer, Consumer};
+use rdkafka::message::Message;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::Mutex;
-#[derive(Serialize, Deserialize, Clone)]
+use tokio::time::timeout;
+use std::time::Duration;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Product {
     id: Option<String>,
     name: String,
@@ -21,11 +26,6 @@ pub struct ProductEvent {
     event: String,
 }
 
-pub struct ProductEventService {
-    producer: Arc<Mutex<FutureProducer>>,
-    topic: String,
-}
-
 pub fn create_event(product: Product, event_type: &str) -> ProductEvent {
     let version = increment_version(product.version);
     ProductEvent {
@@ -38,59 +38,6 @@ pub fn create_event(product: Product, event_type: &str) -> ProductEvent {
         version,
     }
 }
-
-impl ProductEventService {
-    async fn new(broker: &str, topic: &str) -> Self {
-        let producer: FutureProducer = ClientConfig::new()
-            .set("bootstrap.servers", broker)
-            .create()
-            .expect("Producer creation error");
-
-        ProductEventService {
-            producer: Arc::new(Mutex::new(producer)),
-            topic: topic.to_string(),
-        }
-    }
-
-    // pub fn create_event(&self, product: Product, event_type: &str) -> ProductEvent {
-    //     let version = increment_version(product.version);
-    //     ProductEvent {
-    //         id: product
-    //             .id
-    //             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-    //         name: product.name,
-    //         r#type: product.r#type,
-    //         event: event_type.to_string(),
-    //         version,
-    //     }
-    // }
-
-    async fn publish(&self, event: ProductEvent) {
-        let payload = serde_json::to_string(&event).unwrap();
-        let record = FutureRecord::<String, String>::to(&self.topic).payload(&payload);
-        let producer = self.producer.lock().await;
-        producer
-            .send(record, rdkafka::util::Timeout::Never)
-            .await
-            .unwrap();
-    }
-
-    async fn create(&self, product: Product) {
-        let event = create_event(product, "CREATED");
-        self.publish(event).await;
-    }
-
-    async fn update(&self, product: Product) {
-        let event = create_event(product, "UPDATED");
-        self.publish(event).await;
-    }
-
-    async fn delete(&self, product: Product) {
-        let event = create_event(product, "DELETED");
-        self.publish(event).await;
-    }
-}
-
 fn increment_version(version: Option<String>) -> String {
     match version {
         Some(v) => {
@@ -102,38 +49,128 @@ fn increment_version(version: Option<String>) -> String {
 }
 
 async fn create_product(
-    service: web::Data<Arc<ProductEventService>>,
     product: web::Json<Product>,
+    producer: web::Data<Arc<FutureProducer>>,
+    consumer: web::Data<Arc<StreamConsumer>>,
 ) -> impl Responder {
-    service.create(product.into_inner()).await;
-    HttpResponse::Created().finish()
-}
+    let request_topic = "product_request";
+    let reply_topic = "product_reply";
+    let correlation_id = uuid::Uuid::new_v4().to_string();
+    let event = create_event(product.into_inner(),"CREATED");
+    let payload = serde_json::to_string(&event).unwrap();
+    let record = FutureRecord::to(request_topic)
+        .key(&correlation_id)
+        .payload(&payload);
+    println!("sending message {}", payload);
+    producer.send(record, Duration::from_secs(0)).await.unwrap();
 
+    let mut stream = consumer.stream();
+    'outer: while let Some(message) = match timeout(Duration::from_secs(5), stream.try_next()).await {
+        Ok(Ok(msg)) => msg,
+        Ok(Err(_)) | Err(_) => return HttpResponse::InternalServerError().body("Failed to get response"),
+    } {
+        if let Some(payload) = message.payload() {
+            consumer.commit_message(&message, rdkafka::consumer::CommitMode::Async).unwrap();
+            let response: Product = serde_json::from_slice(payload).unwrap();
+            return HttpResponse::Ok().json(response);
+        } else {
+            continue 'outer;
+        }
+    }
+
+    HttpResponse::InternalServerError().body("Failed to get response")
+}
 async fn update_product(
-    service: web::Data<Arc<ProductEventService>>,
     product: web::Json<Product>,
+    producer: web::Data<Arc<FutureProducer>>,
+    consumer: web::Data<Arc<StreamConsumer>>,
 ) -> impl Responder {
-    service.update(product.into_inner()).await;
-    HttpResponse::Ok().finish()
-}
+    let request_topic = "product_request";
+    let reply_topic = "product_reply";
+    let correlation_id = uuid::Uuid::new_v4().to_string();
+    let event = create_event(product.into_inner(),"UPDATED");
 
+    let payload = serde_json::to_string(&event).unwrap();
+    let record = FutureRecord::to(request_topic)
+        .key(&correlation_id)
+        .payload(&payload);
+    println!("sending message {}", payload);
+    producer.send(record, Duration::from_secs(0)).await.unwrap();
+
+    let mut stream = consumer.stream();
+    'outer: while let Some(message) = match timeout(Duration::from_secs(5), stream.try_next()).await {
+        Ok(Ok(msg)) => msg,
+        Ok(Err(_)) | Err(_) => return HttpResponse::InternalServerError().body("Failed to get response"),
+    } {
+        if let Some(payload) = message.payload() {
+            consumer.commit_message(&message, rdkafka::consumer::CommitMode::Async).unwrap();
+            let response: Product = serde_json::from_slice(payload).unwrap();
+            return HttpResponse::Ok().json(response);
+        } else {
+            continue 'outer;
+        }
+    }
+
+    HttpResponse::InternalServerError().body("Failed to get response")
+}
 async fn delete_product(
-    service: web::Data<Arc<ProductEventService>>,
     product: web::Json<Product>,
+    producer: web::Data<Arc<FutureProducer>>,
+    consumer: web::Data<Arc<StreamConsumer>>,
 ) -> impl Responder {
-    service.delete(product.into_inner()).await;
-    HttpResponse::Ok().finish()
+    let request_topic = "product_request";
+    let reply_topic = "product_reply";
+    let correlation_id = uuid::Uuid::new_v4().to_string();
+    let event = create_event(product.into_inner(),"DELETED");
+
+    let payload = serde_json::to_string(&event).unwrap();
+    let record = FutureRecord::to(request_topic)
+        .key(&correlation_id)
+        .payload(&payload);
+    println!("sending message {}", payload);
+    producer.send(record, Duration::from_secs(0)).await.unwrap();
+
+    let mut stream = consumer.stream();
+    'outer: while let Some(message) = match timeout(Duration::from_secs(5), stream.try_next()).await {
+        Ok(Ok(msg)) => msg,
+        Ok(Err(_)) | Err(_) => return HttpResponse::InternalServerError().body("Failed to get response"),
+    } {
+        if let Some(payload) = message.payload() {
+            consumer.commit_message(&message, rdkafka::consumer::CommitMode::Async).unwrap();
+            let response: Product = serde_json::from_slice(payload).unwrap();
+            return HttpResponse::Ok().json(response);
+        } else {
+            continue 'outer;
+        }
+    }
+
+    HttpResponse::InternalServerError().body("Failed to get response")
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let broker = "localhost:9092";
-    let topic = "products";
-    let service = Arc::new(ProductEventService::new(broker, topic).await);
+    let producer: FutureProducer = ClientConfig::new()
+        .set("bootstrap.servers", "localhost:9092")
+        .create()
+        .expect("Producer creation error");
+
+    let consumer: StreamConsumer = ClientConfig::new()
+        .set("group.id", "product_group")
+        .set("bootstrap.servers", "localhost:9092")
+        .set("enable.auto.commit", "false")
+        .set("auto.offset.reset", "earliest")
+        .create()
+        .expect("Consumer creation error");
+
+    consumer.subscribe(&["product_reply"]).expect("Subscription error");
+
+    let producer = Arc::new(producer);
+    let consumer = Arc::new(consumer);
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(service.clone()))
+            .app_data(web::Data::new(producer.clone()))
+            .app_data(web::Data::new(consumer.clone()))
             .route("/products", web::post().to(create_product))
             .route("/products/{id}", web::put().to(update_product))
             .route("/products/{id}", web::delete().to(delete_product))
@@ -191,12 +228,19 @@ mod tests {
             body: web::Json<serde_json::Value>,
         ) -> impl Responder {
             println!("Incoming request path: {}", req.path());
-            println!("Incoming request path: {}", req.method());
+            println!("Incoming request method: {}", req.method());
             println!("Incoming request body: {}", body);
-            println!("Incoming request body: {}", body["description"]);
+            println!("Incoming request description: {}", body["description"]);
 
+            // Incoming request path: /pact-messages
+            // Incoming request method: POST
+            // Incoming request body: {"description":"a product event update with reply","request":{"contents":{"content":{"event":"UPDATED","id":"some-uuid-1234-5678","name":"Some Product","type":"Product Range","version":"v1"},"contentType":"application/json","encoded":false},"matchingRules":{"body":{"$.event":{"combine":"AND","matchers":[{"match":"regex","regex":"^(CREATED|UPDATED|DELETED)$"}]},"$.id":{"combine":"AND","matchers":[{"match":"type"}]},"$.name":{"combine":"AND","matchers":[{"match":"type"}]},"$.type":{"combine":"AND","matchers":[{"match":"type"}]},"$.version":{"combine":"AND","matchers":[{"match":"type"}]}},"metadata":{}},"metadata":{"kafka_reply_topic":"product_reply","kafka_request_topic":"product_request"}}}
+
+            // TODO - Should we get access to the response contents in the incoming
+            // body, to ensure that our provider can handle it?
+            // the verification flow here hasn't changed from an async verification
             match body["description"].as_str() {
-                Some("a product event update") => {
+                Some("a product event update with reply") => {
                     let product = Product {
                         id: Some("some-uuid-1234-5678".to_string()),
                         name: "Some Product".to_string(),
@@ -206,6 +250,8 @@ mod tests {
                     let event_type = "UPDATED";
                     let product_event = create_event(product, event_type);
                     let mut response = HttpResponse::Ok().json(product_event);
+                    // metadata doesn't appear to be validating
+                    // we are expecting 
                     let metadata = json!({
                       "kafka_topic": "products"
                     });
@@ -250,7 +296,7 @@ mod tests {
             env::current_dir()
                 .expect("could not find current working directory")
                 .join("..")
-                .join("consumer-rust-kafka")
+                .join("consumer-rust-kafka-sync")
                 .join("target")
                 .join("pacts")
                 .join(path)
@@ -266,7 +312,7 @@ mod tests {
             host: "127.0.0.1".to_string(),
             port: Some(8090),
             transports: vec![ProviderTransport {
-                transport: "async-message".to_string(),
+                transport: "sync-message".to_string(),
                 port: Some(8090),
                 path: Some("/pact-messages".to_string()),
                 scheme: Some("http".to_string()),

@@ -14,7 +14,7 @@ jobs:
           - macos-13
           - macos-14
         project:
-          - rust
+          # - rust
           - dotnet
           - go
           - java
@@ -101,3 +101,60 @@ jobs:
             make test
           fi
         working-directory: provider-${{matrix.project}}-kafka
+
+  test_sync:
+    name: ${{matrix.project}}-${{matrix.os}}
+    strategy:
+      matrix:
+        os: 
+          - ubuntu-latest
+          - windows-latest
+          - macos-13
+          - macos-14
+        project:
+          - rust
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        if: ${{ matrix.project == 'rust' }}
+        with:
+          cache: false
+      - name: pact test (consumer)
+        run: make test
+        working-directory: consumer-${{matrix.project}}-kafka-sync
+      - name: pact verification (provider)
+        run: make test
+        working-directory: provider-${{matrix.project}}-kafka-sync
+  test_async:
+    name: ${{matrix.project}}-${{matrix.os}}
+    strategy:
+      matrix:
+        os: 
+          - ubuntu-latest
+          - windows-latest
+          - macos-13
+          - macos-14
+        project:
+          - rust
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        if: ${{ matrix.project == 'rust' }}
+        with:
+          cache: false
+      - name: pact test (consumer)
+        run: make test
+        working-directory: consumer-${{matrix.project}}-kafka-async
+      - name: pact verification (provider)
+        run: make test
+        working-directory: provider-${{matrix.project}}-kafka-async
