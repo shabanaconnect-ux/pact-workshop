@@ -74,11 +74,14 @@ jobs:
           if [ "${{ matrix.project }}" == "python" ]; then
               if [ "${{ matrix.os }}" == "windows-latest" ]; then
                 source $(poetry env info --path)/Scripts/activate
+                python -m pytest -s
               else
                 source $(poetry env info --path)/bin/activate
+                make test
               fi
+          else
+            make test
           fi
-          make test
         working-directory: consumer-${{matrix.project}}-kafka
       - name: install (provider)
         run: make install
@@ -89,9 +92,12 @@ jobs:
           if [ "${{ matrix.project }}" == "python" ]; then
               if [ "${{ matrix.os }}" == "windows-latest" ]; then
                 source $(poetry env info --path)/Scripts/activate
+                python -m pytest -s
               else
                 source $(poetry env info --path)/bin/activate
+                make test
               fi
+          else
+            make test
           fi
-          make test
         working-directory: provider-${{matrix.project}}-kafka
