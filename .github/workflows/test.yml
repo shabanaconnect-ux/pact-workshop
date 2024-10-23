@@ -14,11 +14,11 @@ jobs:
           - macos-13
           - macos-14
         project:
-          # - rust
-          # - dotnet
-          # - go
-          # - java
-          # - js
+          - rust
+          - dotnet
+          - go
+          - java
+          - js
           - python
       fail-fast: false
     runs-on: ${{ matrix.os }}
