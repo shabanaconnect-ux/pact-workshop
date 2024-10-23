@@ -240,7 +240,10 @@ def start_provider(**kwargs: str) -> Generator[URL, None, None]:  # noqa: C901
     try:
         yield url
     finally:
-        process.send_signal(signal.SIGINT)
+        if sys.platform == "win32":
+            process.terminate()
+        else:
+            process.send_signal(signal.SIGINT)
 
 
 if __name__ == "__main__":
