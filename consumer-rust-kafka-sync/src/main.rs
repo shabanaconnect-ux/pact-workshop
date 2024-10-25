@@ -158,9 +158,15 @@ mod tests {
 
 use expectest::{expect, prelude::be_some};
 use pact_consumer::{matching_regex, prelude::*};
+use pact_models::{bodies::OptionalBody, prelude::MatchingRules};
+use pact_models::path_exp::DocPath;
+use pact_models::prelude::{Generators, MatchingRuleCategory};
+use pact_models::v4::message_parts::MessageContents;
+// use pact_models::{MessageContents};
 use serde_json::Value;
 use crate::{product_event_processor, product_event_reply_generator, AppState};
 use std::collections::HashMap;
+use maplit::hashmap;
 use std::sync::Mutex;
 use actix_web::web;
 use expectest::matchers::be_equal_to;
@@ -170,7 +176,7 @@ fn consumes_a_product_event_update_message_and_responds() {
     // For messages we need to use the V4 Pact format.
     let mut pact_builder =
         // Define the message consumer and provider by name
-        pact_consumer::builders::PactBuilder::new_v4("pactflow-example-consumer-rust-kafka", "pactflow-example-provider-rust-kafka");
+        pact_consumer::builders::PactBuilder::new_v4("pactflow-example-consumer-rust-kafka-sync", "pactflow-example-provider-rust-kafka-sync");
     pact_builder
 
         // Adds an interaction given the message description and type.
@@ -191,15 +197,51 @@ fn consumes_a_product_event_update_message_and_responds() {
               "version": like!("v1"),
               "event": matching_regex!("^(CREATED|UPDATED|DELETED)$","UPDATED")
             }));
-            i.response_json_body(json_pattern!({
-              "id": like!("some-uuid-1234-5678"),
-              "type": like!("Product Range"),
-              "name": like!("Some Product"),
-              "version": like!("v1")
-            }));
+
             // Set any required metadata
             i.request_metadata("kafka_request_topic", "product_request");
-            i.request_metadata("kafka_reply_topic", "product_reply");
+
+
+            // Setup our response
+
+            // We would like to use our matching rules via response_json_body
+            // but we cannot set metadata on responses, so we do this a different way
+
+            // i.response_json_body(json_pattern!({
+            //   "id": like!("some-uuid-1234-5678"),
+            //   "type": like!("Product Range"),
+            //   "name": like!("Some Product"),
+            //   "version": like!("v1")
+            // }));
+
+
+            // TODO - multiple responses can be provided for async messages
+            // only way to set metadata is using the response_contents method
+            // other methods are response_json_body and response_body
+
+            let body = json_pattern!({
+                "id": like!("some-uuid-1234-5678"),
+                "type": like!("Product Range"),
+                "name": like!("Some Product"),
+                "version": like!("v1")
+                });
+            let message_body = OptionalBody::Present(body.to_example().to_string().into(), Some("application/json".into()), None);
+            let mut rules = MatchingRuleCategory::empty("content");
+            body.extract_matching_rules(DocPath::root(), &mut rules);
+
+            i.response_contents(&MessageContents{
+                contents: message_body,
+                  metadata: hashmap! {
+                      "kafka_reply_topic".to_string() => serde_json::Value::String("product_reply".to_string())
+                  },
+                matching_rules: {
+                    let mut matching_rules = MatchingRules::default();
+                    matching_rules.add_rules("content", rules);
+                    matching_rules
+                },
+                generators: Generators::default(),
+                
+            });
             // Need to return the mutated interaction builder
             i
         });
@@ -220,7 +262,7 @@ fn consumes_a_product_event_update_message_and_responds() {
 
         // get message metadata
         let kafka_request_topic = message.request.metadata.get("kafka_request_topic");
-        let kafka_reply_topic = message.request.metadata.get("kafka_reply_topic");
+        // let kafka_reply_topic = message.response.metadata.get("kafka_reply_topic");
 
         // you may want to process the bytes into a Value
         let _request_message: Value = serde_json::from_slice(&request_message_bytes).unwrap();
@@ -241,8 +283,8 @@ fn consumes_a_product_event_update_message_and_responds() {
         // assert the correct topics are included in our message
         expect!(kafka_request_topic)
             .to(be_some().value("product_request"));
-        expect!(kafka_reply_topic)
-            .to(be_some().value("product_reply"));
+        // expect!(kafka_reply_topic)
+        //     .to(be_some().value("product_reply"));
 
         // we should now call our event reply generator and ensure it can create the appropriate message
         let actual_response: Value = serde_json::from_slice(&product_event_reply_generator(product)).unwrap();

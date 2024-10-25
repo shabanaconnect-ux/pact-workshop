@@ -54,7 +54,6 @@ async fn create_product(
     consumer: web::Data<Arc<StreamConsumer>>,
 ) -> impl Responder {
     let request_topic = "product_request";
-    let reply_topic = "product_reply";
     let correlation_id = uuid::Uuid::new_v4().to_string();
     let event = create_event(product.into_inner(),"CREATED");
     let payload = serde_json::to_string(&event).unwrap();
@@ -86,7 +85,6 @@ async fn update_product(
     consumer: web::Data<Arc<StreamConsumer>>,
 ) -> impl Responder {
     let request_topic = "product_request";
-    let reply_topic = "product_reply";
     let correlation_id = uuid::Uuid::new_v4().to_string();
     let event = create_event(product.into_inner(),"UPDATED");
 
@@ -119,7 +117,6 @@ async fn delete_product(
     consumer: web::Data<Arc<StreamConsumer>>,
 ) -> impl Responder {
     let request_topic = "product_request";
-    let reply_topic = "product_reply";
     let correlation_id = uuid::Uuid::new_v4().to_string();
     let event = create_event(product.into_inner(),"DELETED");
 
@@ -149,6 +146,8 @@ async fn delete_product(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let product_reply_topic = "product_reply";
+
     let producer: FutureProducer = ClientConfig::new()
         .set("bootstrap.servers", "localhost:9092")
         .create()
@@ -162,7 +161,7 @@ async fn main() -> std::io::Result<()> {
         .create()
         .expect("Consumer creation error");
 
-    consumer.subscribe(&["product_reply"]).expect("Subscription error");
+    consumer.subscribe(&[product_reply_topic]).expect("Subscription error");
 
     let producer = Arc::new(producer);
     let consumer = Arc::new(consumer);
@@ -250,13 +249,11 @@ mod tests {
                     let event_type = "UPDATED";
                     let product_event = create_event(product, event_type);
                     let mut response = HttpResponse::Ok().json(product_event);
-                    // metadata doesn't appear to be validating
-                    // we are expecting 
-                    let metadata = json!({
-                      "kafka_topic": "products"
+                    let response_metadata = json!({
+                      "kafka_reply_topic": "product_reply"
                     });
                     let encoded_metadata =
-                        general_purpose::STANDARD.encode(metadata.to_string());
+                        general_purpose::STANDARD.encode(response_metadata.to_string());
                     response.headers_mut().insert(
                         HeaderName::from_static("pact-message-metadata"),
                         HeaderValue::from_str(&encoded_metadata).unwrap(),
@@ -270,6 +267,7 @@ mod tests {
         let (tx, rx) = oneshot::channel();
         let server = HttpServer::new(|| {
             App::new().route("/pact-messages", web::post().to(handle_request))
+            // App::new().default_service(web::route().to(handle_request)) # listen on any route
         })
         .bind("127.0.0.1:8090")
         .expect("Failed to bind server")
@@ -303,12 +301,12 @@ mod tests {
                 .to_owned()
         }
         let pact_file = fixture_path(
-            "pactflow-example-consumer-rust-kafka-pactflow-example-provider-rust-kafka.json",
+            "pactflow-example-consumer-rust-kafka-sync-pactflow-example-provider-rust-kafka-sync.json",
         );
 
         #[allow(deprecated)]
         let provider_info = ProviderInfo {
-            name: "pactflow-example-provider-rust-kafka".to_string(),
+            name: "pactflow-example-provider-rust-kafka-sync".to_string(),
             host: "127.0.0.1".to_string(),
             port: Some(8090),
             transports: vec![ProviderTransport {

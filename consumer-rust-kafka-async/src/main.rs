@@ -131,7 +131,7 @@ fn consumes_a_product_event_update_message() {
     // For messages we need to use the V4 Pact format.
     let mut pact_builder =
         // Define the message consumer and provider by name
-        pact_consumer::builders::PactBuilder::new_v4("pactflow-example-consumer-rust-kafka", "pactflow-example-provider-rust-kafka");
+        pact_consumer::builders::PactBuilder::new_v4("pactflow-example-consumer-rust-kafka-async", "pactflow-example-provider-rust-kafka-async");
     pact_builder
 
         // Adds an interaction given the message description and type.

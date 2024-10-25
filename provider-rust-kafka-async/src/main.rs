@@ -250,19 +250,19 @@ mod tests {
             env::current_dir()
                 .expect("could not find current working directory")
                 .join("..")
-                .join("consumer-rust-kafka")
+                .join("consumer-rust-kafka-sync")
                 .join("target")
                 .join("pacts")
                 .join(path)
                 .to_owned()
         }
         let pact_file = fixture_path(
-            "pactflow-example-consumer-rust-kafka-pactflow-example-provider-rust-kafka.json",
+            "pactflow-example-consumer-rust-kafka-async-pactflow-example-provider-rust-kafka-async.json",
         );
 
         #[allow(deprecated)]
         let provider_info = ProviderInfo {
-            name: "pactflow-example-provider-rust-kafka".to_string(),
+            name: "pactflow-example-provider-rust-kafka-async".to_string(),
             host: "127.0.0.1".to_string(),
             port: Some(8090),
             transports: vec![ProviderTransport {
