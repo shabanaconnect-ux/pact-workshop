@@ -250,7 +250,7 @@ mod tests {
             env::current_dir()
                 .expect("could not find current working directory")
                 .join("..")
-                .join("consumer-rust-kafka-sync")
+                .join("consumer-rust-kafka-async")
                 .join("target")
                 .join("pacts")
                 .join(path)
