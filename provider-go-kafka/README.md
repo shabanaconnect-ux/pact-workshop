@@ -8,7 +8,7 @@ This is an example of a (Gin-based) Golang provider that uses Pact, [PactFlow](h
 
 The project uses a Makefile to simulate a very simple build pipeline with two stages - test and deploy.
 
-It is using a public tenant on PactFlow, which you can access [here](https://test.pactflow.io) using the credentials `dXfltyFMgNOFZAxr8io9wJ37iUpY42M`/`O5AIZWxelWbLvqMd8PkAVycBJh2Psyg1`. The latest version of the Example Consumer/Example Provider pact is published [here](https://test.pactflow.io/pacts/provider/pactflow-example-provider-golang/consumer/pactflow-example-consumer/latest).
+It is using a public tenant on PactFlow, which you can access [here](https://test.pactflow.io) using this [special link](https://test.pactflow.io/login?code=98f7810e-c7dc-493b-9c3d-7849952f1d9a&utm_medium=web&utm_source=pact-workshop-message-provider-go-kafka). The latest version of the Example Consumer/Example Provider pact is published [here](https://test.pactflow.io/pacts/provider/pactflow-example-provider-golang/consumer/pactflow-example-consumer/latest).
 
 ## Pre-Requisites
 
