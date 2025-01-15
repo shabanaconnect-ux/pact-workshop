@@ -10,7 +10,7 @@
 
 This is an example of a NodeJS provider that uses Pact, [PactFlow](https://pactflow.io) and GitHub Actions to ensure that it is compatible with the expectations its consumers have of it.
 
-It is using a public tenant on PactFlow, which you can access [here](https://test.pactflow.io) using the credentials `dXfltyFMgNOFZAxr8io9wJ37iUpY42M`/`O5AIZWxelWbLvqMd8PkAVycBJh2Psyg1`. The latest version of the Example Consumer/Example Provider pact is published [here](https://test.pactflow.io/pacts/provider/pactflow-example-provider-js-sns/consumer/pactflow-example-consumer-js-sns/latest).
+It is using a public tenant on PactFlow, which you can access [here]([https://test.pactflow.io](https://test.pactflow.io/login?code=98f7810e-c7dc-493b-9c3d-7849952f1d9a&utm_medium=web&utm_source=pact-workshop-message-provider-js-kafka)). The latest version of the Example Consumer/Example Provider pact is published [here](https://test.pactflow.io/pacts/provider/pactflow-example-provider-js-sns/consumer/pactflow-example-consumer-js-sns/latest).
 
 In the following diagram, we'll be testing the "Product Update API", a simple HTTP service that receives product updates via a REST API and publishes product events on the `product` topic.
 
