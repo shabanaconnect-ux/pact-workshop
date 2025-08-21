@@ -1,0 +1,32 @@
+{
+    "name": "pact-foundation/consumer-php-kafka",
+    "type": "project",
+    "require-dev": {
+        "pact-foundation/pact-php": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PactFoundation\\ConsumerPhpKafka\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Yousaf Nabi",
+            "email": "yousaf@pactflow.io"
+        }
+    ],
+    "require": {
+        "slim/slim": "4.*",
+        "enqueue/rdkafka": "^0.10.20",
+        "php-di/slim-bridge": "^3.4",
+        "amphp/parallel": "^2.3"
+    },
+    "config": {
+        "allow-plugins": {
+            "pact-foundation/composer-downloads-plugin": true
+        }
+    },
+    "scripts": {
+        "start": "php -S localhost:9999 src/consumer.php"
+    }
+}
