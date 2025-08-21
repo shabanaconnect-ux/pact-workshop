@@ -84,26 +84,6 @@ async fn kafka_consumer(data: web::Data<AppState>) {
             Ok(m) => {
                 if let Some(payload) = m.payload() {
                     product_event_processor(&data, payload);
-                    // let product_event: ProductEvent =
-                    //     serde_json::from_slice(payload).expect("Error deserializing product");
-                    // let product = Product {
-                    //     id: product_event.id.clone(),
-                    //     r#type: product_event.r#type.clone(),
-                    //     name: product_event.name.clone(),
-                    //     version: product_event.version.clone(),
-                    // };
-                    // let mut products = data.products.lock().unwrap();
-                    // match product_event.event.as_str() {
-                    //     "CREATED" | "UPDATED" => {
-                    //         products.insert(product_event.id.clone(), product);
-                    //     }
-                    //     "DELETED" => {
-                    //         products.remove(&product.id);
-                    //     }
-                    //     _ => {
-                    //         eprintln!("Unknown event type");
-                    //     }
-                    // }
                 }
             }
             Err(e) => eprintln!("Kafka error: {}", e),
@@ -151,7 +131,7 @@ fn consumes_a_product_event_update_message() {
     // For messages we need to use the V4 Pact format.
     let mut pact_builder =
         // Define the message consumer and provider by name
-        pact_consumer::builders::PactBuilder::new_v4("pactflow-example-consumer-rust-kafka", "pactflow-example-provider-rust-kafka");
+        pact_consumer::builders::PactBuilder::new_v4("pactflow-example-consumer-rust-kafka-async", "pactflow-example-provider-rust-kafka-async");
     pact_builder
 
         // Adds an interaction given the message description and type.

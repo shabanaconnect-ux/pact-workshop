@@ -47,10 +47,12 @@ There are sub-folders with both a `consumer` and `provider` application, in the 
 
 `<application>-<language>-<queue_type>`
 
+## Async Examples
+
 - consumer-dotnet-kafka
 - provider-dotnet-kafka
-- consumer-rust-kafka
-- provider-rust-kafka
+- consumer-rust-kafka-async
+- provider-rust-kafka-async
 - consumer-go-kafka
 - provider-go-kafka
 - provider-python-kafka
@@ -59,6 +61,11 @@ There are sub-folders with both a `consumer` and `provider` application, in the 
 - consumer-js-kafka
 - consumer-java-kafka
 - provider-java-kafka
+
+## Sync Examples
+
+- consumer-rust-kafka-sync
+- provider-rust-kafka-sync
 
 ## Learning objectives
 
